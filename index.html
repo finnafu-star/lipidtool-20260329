@@ -1,0 +1,1093 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>血脂異常風險評估工具｜2025 台灣臨床路徑</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Microsoft JhengHei', 'Noto Sans TC', 'PingFang TC', sans-serif;
+      background: #eef3f9;
+      min-height: 100vh;
+      color: #2d2d2d;
+      font-size: 15px;
+      line-height: 1.5;
+    }
+
+    /* ── Header ── */
+    .app-header {
+      background: linear-gradient(135deg, #0d47a1 0%, #0288d1 100%);
+      color: #fff;
+      padding: 18px 20px 16px;
+      text-align: center;
+      position: sticky; top: 0; z-index: 100;
+      box-shadow: 0 3px 12px rgba(0,0,0,.25);
+    }
+    .app-header h1 { font-size: 1.25rem; font-weight: 700; letter-spacing: .5px; }
+    .app-header p  { font-size: .78rem; opacity: .88; margin-top: 3px; }
+
+    /* ── Container ── */
+    .container { max-width: 680px; margin: 0 auto; padding: 20px 16px 40px; }
+
+    /* ── Progress ── */
+    .progress-wrap {
+      display: flex; align-items: center; justify-content: center;
+      gap: 0; margin-bottom: 22px;
+    }
+    .prog-step {
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+    }
+    .prog-dot {
+      width: 34px; height: 34px; border-radius: 50%;
+      background: #d0d9e8; color: #888;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: .82rem;
+      transition: all .3s; border: 2px solid transparent;
+      flex-shrink: 0;
+    }
+    .prog-dot.active  { background: #1565c0; color: #fff; border-color: rgba(21,101,192,.35); box-shadow: 0 0 0 4px rgba(21,101,192,.2); }
+    .prog-dot.done    { background: #2e7d32; color: #fff; }
+    .prog-label { font-size: .68rem; color: #666; white-space: nowrap; }
+    .prog-line { flex: 1; height: 2px; background: #d0d9e8; min-width: 20px; max-width: 60px; margin-bottom: 18px; transition: background .3s; }
+    .prog-line.done { background: #2e7d32; }
+
+    /* ── Card ── */
+    .card {
+      background: #fff; border-radius: 16px;
+      padding: 22px 20px; margin-bottom: 16px;
+      box-shadow: 0 3px 14px rgba(0,0,0,.07);
+    }
+    .card-title {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 1.05rem; font-weight: 700; color: #0d47a1;
+      margin-bottom: 18px;
+    }
+    .card-icon {
+      width: 34px; height: 34px; border-radius: 9px;
+      background: #e3f2fd; display: flex; align-items: center;
+      justify-content: center; font-size: 1rem; flex-shrink: 0;
+    }
+
+    /* ── Form ── */
+    .form-group { margin-bottom: 18px; }
+    .form-label { display: block; font-weight: 600; color: #333; margin-bottom: 5px; font-size: .92rem; }
+    .form-sub   { font-size: .75rem; color: #888; margin-bottom: 5px; }
+    .input-row  { display: flex; align-items: center; gap: 8px; }
+    .input-unit { font-size: .85rem; color: #666; white-space: nowrap; }
+
+    input[type=number] {
+      width: 100%; padding: 11px 14px;
+      border: 2px solid #e0e0e0; border-radius: 10px;
+      font-size: .98rem; color: #333; outline: none;
+      transition: border-color .2s; background: #fafafa;
+      -moz-appearance: textfield;
+    }
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
+    input[type=number]:focus { border-color: #1565c0; background: #fff; }
+    input[type=number].err  { border-color: #c62828; }
+
+    .err-msg { font-size: .75rem; color: #c62828; margin-top: 4px; min-height: 1em; }
+
+    /* Sex selector */
+    .sex-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .sex-btn {
+      padding: 16px 12px; border: 2px solid #e0e0e0; border-radius: 12px;
+      cursor: pointer; text-align: center; background: #fafafa;
+      transition: all .2s; user-select: none;
+    }
+    .sex-btn:hover { border-color: #90caf9; }
+    .sex-btn.selected { border-color: #1565c0; background: #e3f2fd; }
+    .sex-emoji { font-size: 2rem; display: block; margin-bottom: 5px; }
+    .sex-name  { font-weight: 600; font-size: .9rem; color: #333; }
+
+    /* Checkbox / option */
+    .checkbox-group { display: flex; flex-direction: column; gap: 9px; }
+    .opt-label {
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 12px 14px; border: 2px solid #e0e0e0; border-radius: 11px;
+      cursor: pointer; transition: all .2s; background: #fafafa; user-select: none;
+    }
+    .opt-label:hover { border-color: #90caf9; background: #f0f8ff; }
+    .opt-label.selected { border-color: #1565c0; background: #e3f2fd; }
+    .opt-label input[type=checkbox] {
+      width: 18px; height: 18px; margin-top: 1px; cursor: pointer;
+      flex-shrink: 0; accent-color: #1565c0;
+    }
+    .opt-text {}
+    .opt-title { font-weight: 600; color: #2d2d2d; font-size: .9rem; }
+    .opt-desc  { font-size: .76rem; color: #666; margin-top: 2px; }
+
+    /* Collapsible extra section */
+    .subsection {
+      margin-top: 14px; padding: 14px;
+      background: #fff8f0; border-radius: 10px;
+      border: 1px solid #ffe0b2;
+    }
+    .subsection-title { font-size: .85rem; font-weight: 700; color: #b45309; margin-bottom: 10px; }
+
+    /* Divider */
+    .divider { height: 1px; background: #eeeeee; margin: 16px 0; }
+
+    /* Buttons */
+    .btn {
+      padding: 13px 22px; border: none; border-radius: 11px;
+      font-size: .95rem; font-weight: 700; cursor: pointer;
+      transition: all .2s; letter-spacing: .2px;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #1565c0, #0288d1);
+      color: #fff; width: 100%;
+    }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(21,101,192,.4); }
+    .btn-secondary { background: #f0f0f0; color: #555; }
+    .btn-secondary:hover { background: #e0e0e0; }
+    .btn-row { display: flex; gap: 12px; }
+    .btn-row .btn-primary { flex: 1; }
+    .btn-row .btn-secondary { flex: 0 0 90px; }
+
+    /* Disclaimer box */
+    .disclaimer {
+      background: #fffbeb; border-left: 4px solid #f59e0b;
+      border-radius: 10px; padding: 14px 16px;
+      font-size: .82rem; color: #444; line-height: 1.65;
+    }
+    .disclaimer strong { display: block; color: #92400e; margin-bottom: 5px; font-size: .88rem; }
+
+    /* ──────────── RESULTS ──────────── */
+
+    /* Risk badge */
+    .risk-badge {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 7px 18px; border-radius: 100px;
+      font-weight: 700; font-size: 1.05rem;
+    }
+    .risk-low       { background: #e8f5e9; color: #1b5e20; }
+    .risk-medium    { background: #fff3e0; color: #e65100; }
+    .risk-high      { background: #fce4ec; color: #b71c1c; }
+    .risk-very_high { background: #fce4ec; color: #880e4f; }
+    .risk-extreme   { background: #f3e5f5; color: #4a148c; }
+
+    /* Risk meter bar */
+    .meter-bar {
+      height: 14px; border-radius: 7px; position: relative; overflow: visible;
+      background: linear-gradient(90deg,
+        #4caf50 0%, #8bc34a 22%, #ffeb3b 42%,
+        #ff9800 63%, #f44336 80%, #9c27b0 100%);
+      margin: 10px 0 6px;
+    }
+    .meter-pointer {
+      position: absolute; top: 50%; transform: translate(-50%,-50%);
+      width: 22px; height: 22px; border-radius: 50%;
+      background: #fff; border: 3px solid #333;
+      transition: left .6s cubic-bezier(.34,1.56,.64,1);
+    }
+    .meter-labels {
+      display: flex; justify-content: space-between;
+      font-size: .68rem; color: #666; padding: 0 2px;
+    }
+
+    /* LDL comparison grid */
+    .ldl-compare {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+      margin: 14px 0;
+    }
+    .ldl-box {
+      background: #f8f9fa; border-radius: 12px;
+      padding: 14px; text-align: center;
+    }
+    .ldl-box-label { font-size: .78rem; color: #666; margin-bottom: 4px; }
+    .ldl-box-val   { font-size: 2rem; font-weight: 800; line-height: 1; }
+    .ldl-box-unit  { font-size: .76rem; color: #888; margin-top: 3px; }
+    .ldl-current   { border: 2px solid #e0e0e0; }
+    .ldl-target    { border: 2px solid #1565c0; background: #e3f2fd; }
+    .ldl-target .ldl-box-val { color: #0d47a1; }
+
+    .chart-wrap { position: relative; height: 180px; margin: 8px 0 4px; }
+
+    /* Non-HDL strip */
+    .non-hdl-strip {
+      display: flex; justify-content: space-between; align-items: center;
+      background: #f3e5f5; border-radius: 10px;
+      padding: 11px 16px; margin-top: 10px;
+    }
+    .nhs-label { font-size: .8rem; color: #555; }
+    .nhs-sub   { font-size: .7rem; color: #888; }
+    .nhs-val   { font-size: 1.05rem; font-weight: 700; color: #6a1b9a; text-align: right; }
+    .nhs-tgt   { font-size: .72rem; color: #888; text-align: right; }
+
+    /* Lipid cards */
+    .lipid-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 11px;
+    }
+    .lipid-item {
+      background: #f8f9fa; border-radius: 12px;
+      padding: 13px; border-left: 4px solid #ccc;
+    }
+    .lipid-item.ok  { border-left-color: #4caf50; }
+    .lipid-item.mid { border-left-color: #ff9800; }
+    .lipid-item.bad { border-left-color: #f44336; }
+    .li-name  { font-size: .73rem; color: #666; margin-bottom: 4px; }
+    .li-val   { font-size: 1.3rem; font-weight: 800; color: #2d2d2d; }
+    .li-unit  { font-size: .7rem; color: #999; }
+    .li-msg   { font-size: .73rem; margin-top: 5px; }
+    .li-msg.ok  { color: #2e7d32; }
+    .li-msg.mid { color: #e65100; }
+    .li-msg.bad { color: #c62828; }
+
+    /* Alert boxes */
+    .alert {
+      padding: 11px 14px; border-radius: 10px;
+      font-size: .84rem; line-height: 1.55;
+      margin-bottom: 11px; display: flex; gap: 9px; align-items: flex-start;
+    }
+    .alert-icon { flex-shrink: 0; font-size: 1rem; }
+    .alert-success { background: #e8f5e9; border-left: 4px solid #4caf50; color: #1a3a1a; }
+    .alert-warn    { background: #fffde7; border-left: 4px solid #f9a825; color: #3d2b00; }
+    .alert-danger  { background: #fce4ec; border-left: 4px solid #e53935; color: #3b0000; }
+    .alert-info    { background: #e3f2fd; border-left: 4px solid #1565c0; color: #0a1a33; }
+
+    /* Tabs */
+    .tabs { display: flex; border-bottom: 2px solid #e8e8e8; margin-bottom: 16px; gap: 2px; }
+    .tab-btn {
+      padding: 8px 14px; border: none; background: none;
+      cursor: pointer; font-size: .84rem; color: #777;
+      border-bottom: 2px solid transparent; margin-bottom: -2px;
+      font-weight: 500; transition: all .2s;
+    }
+    .tab-btn.active { color: #1565c0; border-bottom-color: #1565c0; font-weight: 700; }
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+
+    /* Education content */
+    .edu-h { font-size: .92rem; font-weight: 700; color: #0d47a1; margin: 12px 0 6px; }
+    .edu-p  { font-size: .84rem; color: #444; line-height: 1.65; }
+    .edu-ul { padding-left: 18px; }
+    .edu-ul li { font-size: .84rem; color: #444; margin-bottom: 4px; line-height: 1.55; }
+
+    /* Treatment steps */
+    .t-step { display: flex; gap: 12px; margin-bottom: 13px; }
+    .t-num {
+      width: 27px; height: 27px; border-radius: 50%;
+      background: #1565c0; color: #fff; display: flex;
+      align-items: center; justify-content: center;
+      font-size: .78rem; font-weight: 700; flex-shrink: 0;
+    }
+    .t-body { padding-top: 3px; }
+    .t-body p { font-size: .84rem; color: #444; line-height: 1.55; }
+
+    /* Lifestyle grid */
+    .lifestyle-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+      margin: 12px 0;
+    }
+    .ls-item {
+      background: #f8f9fa; border-radius: 11px;
+      padding: 12px 8px; text-align: center;
+    }
+    .ls-emoji { font-size: 1.5rem; display: block; margin-bottom: 4px; }
+    .ls-title { font-size: .78rem; font-weight: 700; color: #333; }
+    .ls-desc  { font-size: .7rem; color: #666; margin-top: 2px; }
+
+    /* Welcome */
+    .welcome-hero { text-align: center; margin-bottom: 18px; }
+    .welcome-icon { font-size: 3.5rem; }
+    .welcome-title { font-size: 1.2rem; font-weight: 700; color: #0d47a1; margin-top: 8px; }
+    .welcome-sub   { font-size: .86rem; color: #555; margin-top: 6px; line-height: 1.6; }
+
+    .feature-list { margin: 14px 0 18px; display: flex; flex-direction: column; gap: 9px; }
+    .feat-item { display: flex; align-items: center; gap: 10px; font-size: .86rem; color: #444; }
+    .feat-icon {
+      width: 32px; height: 32px; background: #e3f2fd; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: .95rem; flex-shrink: 0;
+    }
+
+    /* Screen management */
+    .screen { display: none; }
+    .screen.active { display: block; }
+
+    /* Print */
+    @media print {
+      .no-print { display: none !important; }
+      .app-header { position: static; }
+      .card { box-shadow: none; }
+    }
+    @media (max-width: 400px) {
+      .lifestyle-grid { grid-template-columns: repeat(2,1fr); }
+    }
+
+    /* Reset button */
+    .btn-reset {
+      width: 100%; padding: 12px; border: 2px solid #1565c0; border-radius: 11px;
+      background: #fff; color: #1565c0; font-weight: 700; font-size: .95rem;
+      cursor: pointer; margin-top: 10px; transition: all .2s;
+    }
+    .btn-reset:hover { background: #e3f2fd; }
+  </style>
+</head>
+<body>
+
+<header class="app-header">
+  <h1>🫀 血脂異常風險評估工具</h1>
+  <p>依據 2025 台灣血脂管理臨床路徑共識</p>
+</header>
+
+<!-- ==================== SCREEN 0: Welcome ==================== -->
+<div class="screen active" id="s0">
+  <div class="container">
+    <div class="card" style="margin-top:16px;">
+      <div class="welcome-hero">
+        <div class="welcome-icon">🩺</div>
+        <div class="welcome-title">歡迎使用血脂異常風險評估工具</div>
+        <div class="welcome-sub">本工具依據《2025 台灣血脂管理臨床路徑共識》，協助您了解血脂數值意義、心血管風險等級與相關衛教資訊。</div>
+      </div>
+      <div class="feature-list">
+        <div class="feat-item"><div class="feat-icon">📊</div>分析血脂數值，計算心血管風險等級</div>
+        <div class="feat-item"><div class="feat-icon">🎯</div>提供個人化 LDL-C 理想控制目標說明</div>
+        <div class="feat-item"><div class="feat-icon">📚</div>高血脂與心血管疾病衛教資訊</div>
+        <div class="feat-item"><div class="feat-icon">💬</div>引導您與醫師討論最適合的治療方式</div>
+      </div>
+    </div>
+    <div class="disclaimer">
+      <strong>⚠️ 重要免責聲明</strong>
+      本工具<strong>僅供衛教參考，無法取代醫師的專業診斷與治療建議</strong>。所有評估結果均應與主治醫師確認。若有任何不適或疑問，請立即就醫。本工具不提供診斷或處方決策。
+    </div>
+    <div style="margin-top:14px;">
+      <button class="btn btn-primary" onclick="go(1)">開始評估 →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== SCREEN 1: Basic Info ==================== -->
+<div class="screen" id="s1">
+  <div class="container">
+    <div id="prog1" class="progress-wrap"></div>
+    <div class="card">
+      <div class="card-title"><div class="card-icon">👤</div>基本資料</div>
+
+      <div class="form-group">
+        <label class="form-label">年齡</label>
+        <div class="input-row">
+          <input type="number" id="f-age" placeholder="請輸入年齡" min="18" max="120">
+          <span class="input-unit">歲</span>
+        </div>
+        <div class="err-msg" id="e-age"></div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">生理性別</label>
+        <div class="sex-grid">
+          <div class="sex-btn" id="btn-male" onclick="pickSex('male')">
+            <span class="sex-emoji">♂️</span><span class="sex-name">男性</span>
+          </div>
+          <div class="sex-btn" id="btn-female" onclick="pickSex('female')">
+            <span class="sex-emoji">♀️</span><span class="sex-name">女性</span>
+          </div>
+        </div>
+        <div class="err-msg" id="e-sex"></div>
+      </div>
+    </div>
+    <button class="btn btn-primary no-print" onclick="step1Next()">下一步 →</button>
+  </div>
+</div>
+
+<!-- ==================== SCREEN 2: Blood Lipid Data ==================== -->
+<div class="screen" id="s2">
+  <div class="container">
+    <div id="prog2" class="progress-wrap"></div>
+    <div class="card">
+      <div class="card-title"><div class="card-icon">🧪</div>抽血數據輸入</div>
+      <p style="font-size:.8rem;color:#777;margin-bottom:16px;">請依照血脂報告填入數值（單位：mg/dL）</p>
+
+      <div class="form-group">
+        <label class="form-label">總膽固醇（Total Cholesterol）</label>
+        <div class="form-sub">正常範圍：&lt;200 mg/dL</div>
+        <div class="input-row">
+          <input type="number" id="f-tc" placeholder="例：185" min="50" max="800">
+          <span class="input-unit">mg/dL</span>
+        </div>
+        <div class="err-msg" id="e-tc"></div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">LDL-C（低密度脂蛋白膽固醇）⭐</label>
+        <div class="form-sub">最重要的血脂指標｜理想目標依風險等級而異</div>
+        <div class="input-row">
+          <input type="number" id="f-ldl" placeholder="例：130" min="20" max="600">
+          <span class="input-unit">mg/dL</span>
+        </div>
+        <div class="err-msg" id="e-ldl"></div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">HDL-C（高密度脂蛋白膽固醇）</label>
+        <div class="form-sub">好膽固醇｜男 &gt;40 mg/dL、女 &gt;50 mg/dL 為佳</div>
+        <div class="input-row">
+          <input type="number" id="f-hdl" placeholder="例：55" min="10" max="150">
+          <span class="input-unit">mg/dL</span>
+        </div>
+        <div class="err-msg" id="e-hdl"></div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">三酸甘油脂（Triglycerides）</label>
+        <div class="form-sub">正常範圍：&lt;150 mg/dL</div>
+        <div class="input-row">
+          <input type="number" id="f-tg" placeholder="例：120" min="20" max="2000">
+          <span class="input-unit">mg/dL</span>
+        </div>
+        <div class="err-msg" id="e-tg"></div>
+      </div>
+    </div>
+    <div class="btn-row no-print">
+      <button class="btn btn-secondary" onclick="go(1)">← 上一步</button>
+      <button class="btn btn-primary" onclick="step2Next()">下一步 →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== SCREEN 3: ASCVD History ==================== -->
+<div class="screen" id="s3">
+  <div class="container">
+    <div id="prog3" class="progress-wrap"></div>
+    <div class="card">
+      <div class="card-title"><div class="card-icon">🏥</div>心血管疾病病史</div>
+      <p style="font-size:.8rem;color:#777;margin-bottom:14px;">請勾選您曾被醫師診斷或接受過的治療（可多選，若無請直接點「下一步」）</p>
+
+      <div class="checkbox-group" id="ascvd-checks">
+        <label class="opt-label" id="opt-acs">
+          <input type="checkbox" onchange="onAscvdChange('acs',this)">
+          <div class="opt-text">
+            <div class="opt-title">急性冠心症（心肌梗塞或不穩定心絞痛）</div>
+            <div class="opt-desc">含心肌梗塞、不穩定心絞痛病史</div>
+          </div>
+        </label>
+        <label class="opt-label" id="opt-revasc">
+          <input type="checkbox" onchange="onAscvdChange('revasc',this)">
+          <div class="opt-text">
+            <div class="opt-title">心臟血管再通術</div>
+            <div class="opt-desc">心導管支架（PCI）或冠狀動脈繞道手術（CABG）</div>
+          </div>
+        </label>
+        <label class="opt-label" id="opt-stroke">
+          <input type="checkbox" onchange="onAscvdChange('stroke',this)">
+          <div class="opt-text">
+            <div class="opt-title">缺血性腦中風或短暫性腦缺血（合併動脈硬化）</div>
+            <div class="opt-desc">經醫師診斷與動脈粥狀硬化相關</div>
+          </div>
+        </label>
+        <label class="opt-label" id="opt-pad">
+          <input type="checkbox" onchange="onAscvdChange('pad',this)">
+          <div class="opt-text">
+            <div class="opt-title">周邊動脈疾病</div>
+            <div class="opt-desc">腳部或手臂血管阻塞（含接受血管手術、肢體缺血或截肢）</div>
+          </div>
+        </label>
+        <label class="opt-label" id="opt-plaque">
+          <input type="checkbox" onchange="onAscvdChange('plaque',this)">
+          <div class="opt-text">
+            <div class="opt-title">影像學發現嚴重動脈斑塊（≥50% 血管狹窄）</div>
+            <div class="opt-desc">心導管、電腦斷層或超音波發現血管嚴重狹窄</div>
+          </div>
+        </label>
+      </div>
+
+      <!-- Extreme risk sub-questions (shown when ASCVD checked) -->
+      <div class="subsection" id="extreme-sub" style="display:none;">
+        <div class="subsection-title">⚠️ 以下選項有助更精確評估風險等級（請繼續勾選適用項目）</div>
+        <div class="checkbox-group">
+          <label class="opt-label" id="opt-mi1yr">
+            <input type="checkbox" onchange="onExtraChange('mi1yr',this)">
+            <div class="opt-text"><div class="opt-title">最近一年內曾發生心肌梗塞</div></div>
+          </label>
+          <label class="opt-label" id="opt-mi2plus">
+            <input type="checkbox" onchange="onExtraChange('mi2plus',this)">
+            <div class="opt-text"><div class="opt-title">兩次或以上心肌梗塞病史</div></div>
+          </label>
+          <label class="opt-label" id="opt-multivessel">
+            <input type="checkbox" onchange="onExtraChange('multivessel',this)">
+            <div class="opt-text"><div class="opt-title">多支冠狀動脈阻塞</div></div>
+          </label>
+          <label class="opt-label" id="opt-carotid">
+            <input type="checkbox" onchange="onExtraChange('carotid',this)">
+            <div class="opt-text"><div class="opt-title">頸動脈狹窄</div></div>
+          </label>
+        </div>
+      </div>
+    </div>
+    <div class="btn-row no-print">
+      <button class="btn btn-secondary" onclick="go(2)">← 上一步</button>
+      <button class="btn btn-primary" onclick="go(4)">下一步 →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== SCREEN 4: Risk Factors ==================== -->
+<div class="screen" id="s4">
+  <div class="container">
+    <div id="prog4" class="progress-wrap"></div>
+    <div class="card">
+      <div class="card-title"><div class="card-icon">🔍</div>其他疾病與風險因子</div>
+
+      <div class="form-group">
+        <label class="form-label">高風險疾病（符合任一項即屬高風險，可多選）</label>
+        <div class="checkbox-group">
+          <label class="opt-label" id="opt-diabetes">
+            <input type="checkbox" onchange="onFactorChange('diabetes',this)">
+            <div class="opt-text"><div class="opt-title">糖尿病（第一型或第二型）</div></div>
+          </label>
+          <label class="opt-label" id="opt-ckd">
+            <input type="checkbox" onchange="onFactorChange('ckd',this)">
+            <div class="opt-text">
+              <div class="opt-title">慢性腎臟病</div>
+              <div class="opt-desc">蛋白尿 UACR ≥30 mg/g 或 eGFR &lt;60，持續 3 個月以上</div>
+            </div>
+          </label>
+          <label class="opt-label" id="opt-cac400">
+            <input type="checkbox" onchange="onFactorChange('cac400',this)">
+            <div class="opt-text">
+              <div class="opt-title">冠狀動脈鈣化分數（CAC）≥ 400</div>
+              <div class="opt-desc">若曾接受心臟電腦斷層檢查</div>
+            </div>
+          </label>
+        </div>
+        <div style="margin-top:10px;background:#e3f2fd;border-radius:9px;padding:10px 14px;font-size:.8rem;color:#1a3a5c;">
+          ℹ️ <strong>LDL-C ≥190 mg/dL</strong> 亦屬高風險，已依您輸入的血脂數值自動判斷。
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="form-group">
+        <label class="form-label">心血管風險因子（低風險：1 項；中風險：≥2 項，可多選）</label>
+        <div style="margin-bottom:10px;background:#f0f4f8;border-radius:9px;padding:10px 14px;font-size:.8rem;color:#444;">
+          ℹ️ <strong>年齡</strong>（男 ≥45 歲、女 ≥55 歲）及 <strong>HDL-C 偏低</strong>（男 &lt;40、女 &lt;50 mg/dL）已依您輸入的資料自動判斷。
+        </div>
+        <div class="checkbox-group">
+          <label class="opt-label" id="opt-htn">
+            <input type="checkbox" onchange="onFactorChange('htn',this)">
+            <div class="opt-text">
+              <div class="opt-title">高血壓</div>
+              <div class="opt-desc">血壓偏高（≥140/90 mmHg）或目前使用降血壓藥物</div>
+            </div>
+          </label>
+          <label class="opt-label" id="opt-smoking">
+            <input type="checkbox" onchange="onFactorChange('smoking',this)">
+            <div class="opt-text"><div class="opt-title">目前吸菸（包含電子菸）</div></div>
+          </label>
+          <label class="opt-label" id="opt-famhx">
+            <input type="checkbox" onchange="onFactorChange('famhx',this)">
+            <div class="opt-text">
+              <div class="opt-title">早發性心血管疾病家族史</div>
+              <div class="opt-desc">直系男性親屬 55 歲前、女性親屬 65 歲前曾有心臟病</div>
+            </div>
+          </label>
+          <label class="opt-label" id="opt-metsyn">
+            <input type="checkbox" onchange="onFactorChange('metsyn',this)">
+            <div class="opt-text">
+              <div class="opt-title">代謝症候群（符合以下 3 項以上）</div>
+              <div class="opt-desc">腹部肥胖（男 ≥90 cm、女 ≥80 cm）／血壓偏高（≥130/85 mmHg 或用藥）／空腹血糖偏高（≥100 mg/dL 或用糖尿病藥）／空腹 TG 偏高（≥150 mg/dL 或用藥）／HDL-C 偏低</div>
+            </div>
+          </label>
+        </div>
+      </div>
+    </div>
+    <div class="btn-row no-print">
+      <button class="btn btn-secondary" onclick="go(3)">← 上一步</button>
+      <button class="btn btn-primary" onclick="showResults()">查看結果 →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== SCREEN 5: Results ==================== -->
+<div class="screen" id="s5">
+  <div class="container">
+    <!-- Risk Level -->
+    <div class="card" style="margin-top:16px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+        <div>
+          <div style="font-size:.75rem;color:#888;margin-bottom:4px;">您的心血管風險等級</div>
+          <div class="risk-badge" id="r-badge"></div>
+        </div>
+        <button class="btn btn-secondary no-print" id="pdf-btn" onclick="exportPDF()" style="font-size:.82rem;padding:8px 14px;">📄 下載 PDF 報告</button>
+      </div>
+      <div class="meter-bar"><div class="meter-pointer" id="meter-ptr"></div></div>
+      <div class="meter-labels">
+        <span>低風險</span><span>中風險</span><span>高風險</span><span>非常高</span><span>極高</span>
+      </div>
+    </div>
+
+    <!-- LDL Target -->
+    <div class="card">
+      <div class="card-title"><div class="card-icon">🎯</div>LDL-C 目標對照</div>
+      <div id="ldl-alert-box"></div>
+      <div class="ldl-compare">
+        <div class="ldl-box ldl-current">
+          <div class="ldl-box-label">目前 LDL-C</div>
+          <div class="ldl-box-val" id="r-ldl-cur" style="color:#c62828;"></div>
+          <div class="ldl-box-unit">mg/dL</div>
+        </div>
+        <div class="ldl-box ldl-target">
+          <div class="ldl-box-label">建議目標</div>
+          <div class="ldl-box-val" id="r-ldl-tgt"></div>
+          <div class="ldl-box-unit">mg/dL</div>
+        </div>
+      </div>
+      <div class="chart-wrap"><canvas id="ldl-chart"></canvas></div>
+      <div class="non-hdl-strip">
+        <div>
+          <div class="nhs-label">Non-HDL-C（次要血脂目標）</div>
+          <div class="nhs-sub">= 總膽固醇 − HDL-C｜目標比 LDL-C 目標高 30 mg/dL</div>
+        </div>
+        <div>
+          <div class="nhs-val" id="r-nonhdl-val"></div>
+          <div class="nhs-tgt">目標：<span id="r-nonhdl-tgt"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Lipid Overview -->
+    <div class="card">
+      <div class="card-title"><div class="card-icon">📊</div>血脂數值總覽</div>
+      <div class="lipid-grid" id="lipid-grid"></div>
+    </div>
+
+    <!-- Education Tabs -->
+    <div class="card">
+      <div class="card-title"><div class="card-icon">📋</div>個人化衛教資訊</div>
+      <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('treatment',this)">建議處置</button>
+        <button class="tab-btn" onclick="switchTab('lifestyle',this)">生活型態</button>
+        <button class="tab-btn" onclick="switchTab('about',this)">認識血脂</button>
+      </div>
+
+      <div class="tab-pane active" id="tab-treatment">
+        <div id="treatment-html"></div>
+      </div>
+
+      <div class="tab-pane" id="tab-lifestyle">
+        <p class="edu-p">建議以地中海飲食為基礎，減少飽和脂肪與反式脂肪，增加蔬果、全穀類、豆類及魚類。</p>
+        <div class="lifestyle-grid" style="margin:14px 0;">
+          <div class="ls-item"><span class="ls-emoji">🥦</span><div class="ls-title">多蔬果</div><div class="ls-desc">每日 5 份以上</div></div>
+          <div class="ls-item"><span class="ls-emoji">🐟</span><div class="ls-title">深海魚</div><div class="ls-desc">每週 2–3 次</div></div>
+          <div class="ls-item"><span class="ls-emoji">🏃</span><div class="ls-title">規律運動</div><div class="ls-desc">每週 150 分鐘</div></div>
+          <div class="ls-item"><span class="ls-emoji">🚭</span><div class="ls-title">戒菸</div><div class="ls-desc">降低整體風險</div></div>
+          <div class="ls-item"><span class="ls-emoji">⚖️</span><div class="ls-title">控制體重</div><div class="ls-desc">BMI 18.5–24</div></div>
+          <div class="ls-item"><span class="ls-emoji">🍷</span><div class="ls-title">節制飲酒</div><div class="ls-desc">建議減少或戒除</div></div>
+        </div>
+        <div class="edu-h">💊 其他健康目標</div>
+        <ul class="edu-ul">
+          <li>居家血壓控制目標：&lt;130/80 mmHg</li>
+          <li>若有糖尿病：HbA1c 控制目標 &lt;7%（可個別化考量）</li>
+          <li>定期回診追蹤血脂指標</li>
+        </ul>
+      </div>
+
+      <div class="tab-pane" id="tab-about">
+        <div class="edu-h">什麼是血脂？</div>
+        <p class="edu-p">血脂是血液中脂肪類物質的統稱，主要包含膽固醇與三酸甘油脂。適量的血脂對人體是必要的，但過高或過低都可能影響健康。</p>
+
+        <div class="edu-h">LDL-C 為何重要？</div>
+        <p class="edu-p">LDL-C 俗稱「壞膽固醇」，是造成動脈粥狀硬化最重要的風險因子之一。研究顯示，每降低 38.7 mg/dL 的 LDL-C，可減少約 22% 的重大心血管事件風險。</p>
+
+        <div class="edu-h">什麼是動脈粥狀硬化心血管疾病？</div>
+        <p class="edu-p">ASCVD 包含冠心病、腦血管疾病、周邊動脈疾病及主動脈疾病。共同成因是脂肪斑塊在動脈壁堆積，造成血管狹窄甚至阻塞，可能引發心肌梗塞或中風。</p>
+
+        <div class="edu-h">HDL-C 為什麼是「好膽固醇」？</div>
+        <p class="edu-p">HDL-C 能將血管壁多餘的膽固醇運送回肝臟代謝，具有保護血管作用。男性 &gt;40 mg/dL、女性 &gt;50 mg/dL 為較理想的範圍。</p>
+
+        <div class="edu-h">三酸甘油脂偏高怎麼辦？</div>
+        <p class="edu-p">TG 偏高通常與高糖高油脂飲食、飲酒及代謝症候群相關。透過飲食調整、規律運動、減重及控制血糖，多數人能有效改善。</p>
+
+        <div class="edu-h">什麼是 Non-HDL-C？</div>
+        <p class="edu-p">Non-HDL-C = 總膽固醇 − HDL-C，代表所有具潛在致動脈硬化風險的脂蛋白。特別適用於合併高三酸甘油脂、糖尿病或肥胖的患者作為輔助評估指標。各風險等級的 Non-HDL-C 目標比 LDL-C 目標高 30 mg/dL。</p>
+      </div>
+    </div>
+
+    <div class="disclaimer">
+      <strong>⚠️ 請與您的醫師討論</strong>
+      本報告為衛教工具，結果僅供參考。血脂理想控制目標、用藥選擇及追蹤計畫，應由主治醫師依完整臨床資訊個別評估。請攜帶本報告至下次門診與醫師討論。
+    </div>
+
+    <button class="btn-reset no-print" onclick="resetAll()">← 重新評估</button>
+    <div style="height:20px;"></div>
+  </div>
+</div>
+
+<!-- ==================== SCRIPT ==================== -->
+<script>
+/* ─── State ─── */
+const D = {
+  age: null, sex: null,
+  tc: null, ldl: null, hdl: null, tg: null,
+  acs: false, revasc: false, stroke: false, pad: false, plaque: false,
+  mi1yr: false, mi2plus: false, multivessel: false, carotid: false,
+  diabetes: false, ckd: false, htn: false, cac400: false,
+  smoking: false, famhx: false, metsyn: false
+};
+
+let chartInst = null;
+
+/* ─── Navigation ─── */
+function go(n) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('s' + n).classList.add('active');
+  window.scrollTo(0, 0);
+  if (n >= 1 && n <= 4) renderProgress(n);
+}
+
+/* ─── Progress bar ─── */
+const STEP_LABELS = ['基本資料','血脂數據','疾病史','風險因子'];
+function renderProgress(current) {
+  for (let s = 1; s <= 4; s++) {
+    const el = document.getElementById('prog' + s);
+    if (!el) continue;
+    let html = '';
+    for (let i = 1; i <= 4; i++) {
+      const cls = i < current ? 'prog-dot done' : i === current ? 'prog-dot active' : 'prog-dot';
+      const icon = i < current ? '✓' : i;
+      html += `<div class="prog-step">
+        <div class="${cls}">${icon}</div>
+        <div class="prog-label">${STEP_LABELS[i-1]}</div>
+      </div>`;
+      if (i < 4) {
+        const lineCls = i < current ? 'prog-line done' : 'prog-line';
+        html += `<div class="${lineCls}"></div>`;
+      }
+    }
+    el.innerHTML = html;
+  }
+}
+
+/* ─── Sex ─── */
+function pickSex(sex) {
+  D.sex = sex;
+  document.getElementById('btn-male').classList.toggle('selected', sex === 'male');
+  document.getElementById('btn-female').classList.toggle('selected', sex === 'female');
+  document.getElementById('e-sex').textContent = '';
+}
+
+/* ─── Checkbox toggles ─── */
+function onAscvdChange(key, cb) {
+  D[key] = cb.checked;
+  cb.closest('.opt-label').classList.toggle('selected', cb.checked);
+  const hasAscvd = ['acs','revasc','stroke','pad','plaque'].some(k => D[k]);
+  document.getElementById('extreme-sub').style.display = hasAscvd ? 'block' : 'none';
+}
+function onExtraChange(key, cb) {
+  D[key] = cb.checked;
+  cb.closest('.opt-label').classList.toggle('selected', cb.checked);
+}
+function onFactorChange(key, cb) {
+  D[key] = cb.checked;
+  cb.closest('.opt-label').classList.toggle('selected', cb.checked);
+}
+
+/* ─── Validation ─── */
+function step1Next() {
+  let ok = true;
+  const age = parseInt(document.getElementById('f-age').value);
+  if (!age || age < 18 || age > 120) {
+    document.getElementById('e-age').textContent = '請輸入有效年齡（18–120 歲）';
+    document.getElementById('f-age').classList.add('err');
+    ok = false;
+  } else {
+    document.getElementById('e-age').textContent = '';
+    document.getElementById('f-age').classList.remove('err');
+    D.age = age;
+  }
+  if (!D.sex) {
+    document.getElementById('e-sex').textContent = '請選擇性別';
+    ok = false;
+  } else {
+    document.getElementById('e-sex').textContent = '';
+  }
+  if (ok) go(2);
+}
+
+function step2Next() {
+  const fields = [
+    { id: 'f-tc',  key: 'tc',  label: '總膽固醇',     min: 50,  max: 800 },
+    { id: 'f-ldl', key: 'ldl', label: 'LDL-C',        min: 20,  max: 600 },
+    { id: 'f-hdl', key: 'hdl', label: 'HDL-C',        min: 10,  max: 150 },
+    { id: 'f-tg',  key: 'tg',  label: '三酸甘油脂',   min: 20,  max: 2000 },
+  ];
+  let ok = true;
+  fields.forEach(f => {
+    const val = parseFloat(document.getElementById(f.id).value);
+    const errEl = document.getElementById('e-' + f.id.replace('f-',''));
+    if (!val || val < f.min || val > f.max) {
+      errEl.textContent = `請輸入有效的${f.label}數值`;
+      document.getElementById(f.id).classList.add('err');
+      ok = false;
+    } else {
+      errEl.textContent = '';
+      document.getElementById(f.id).classList.remove('err');
+      D[f.key] = val;
+    }
+  });
+  if (ok) go(3);
+}
+
+/* ─── Risk Calculation ─── */
+function calcRisk() {
+  const hasAscvd = D.acs || D.revasc || D.stroke || D.pad || D.plaque;
+  if (hasAscvd) {
+    const hasCAD = D.acs || D.revasc || D.multivessel;
+    const extremeConditions =
+      D.mi1yr || D.mi2plus || D.multivessel ||
+      (D.acs && D.diabetes) ||
+      (D.pad && (hasCAD || D.carotid)) ||
+      (hasCAD && D.carotid);
+    return { risk: extremeConditions ? 'extreme' : 'very_high', rfCount: -1 };
+  }
+  if (D.diabetes || D.ckd || D.ldl >= 190 || D.cac400) return { risk: 'high', rfCount: -1 };
+  let rf = 0;
+  if (D.htn) rf++;
+  if ((D.sex === 'male' && D.age >= 45) || (D.sex === 'female' && D.age >= 55)) rf++;
+  if (D.famhx) rf++;
+  if ((D.sex === 'male' && D.hdl < 40) || (D.sex === 'female' && D.hdl < 50)) rf++;
+  if (D.smoking) rf++;
+  if (D.metsyn) rf++;
+  if (rf === 0) return { risk: 'low', rfCount: 0 };
+  return { risk: rf >= 2 ? 'medium' : 'low', rfCount: rf };
+}
+
+const RISK_MAP = {
+  low:       { label:'低風險',   ldlTgt:130, nonHdlTgt:160, cls:'risk-low',      ptr:'9%',  secondary:false, interval:'每 6–12 個月' },
+  medium:    { label:'中風險',   ldlTgt:115, nonHdlTgt:145, cls:'risk-medium',   ptr:'29%', secondary:false, interval:'每 6–12 個月' },
+  high:      { label:'高風險',   ldlTgt:100, nonHdlTgt:130, cls:'risk-high',     ptr:'51%', secondary:false, interval:'每 6 個月' },
+  very_high: { label:'非常高風險', ldlTgt:70, nonHdlTgt:100, cls:'risk-very_high',ptr:'72%', secondary:true,  interval:'每 6 個月' },
+  extreme:   { label:'極高風險', ldlTgt:55,  nonHdlTgt:85,  cls:'risk-extreme',  ptr:'90%', secondary:true,  interval:'每 6 個月' },
+};
+
+/* ─── Results Rendering ─── */
+function showResults() {
+  const { risk, rfCount } = calcRisk();
+  const info = RISK_MAP[risk];
+  const ldl  = D.ldl;
+  const tgt  = info.ldlTgt;
+  const achieved = ldl < tgt;
+
+  // Badge
+  const badge = document.getElementById('r-badge');
+  badge.className = 'risk-badge ' + info.cls;
+  badge.innerHTML = `⚡ ${info.label}`;
+
+  // Meter
+  document.getElementById('meter-ptr').style.left = info.ptr;
+
+  // LDL boxes
+  document.getElementById('r-ldl-cur').textContent = ldl;
+  document.getElementById('r-ldl-cur').style.color = achieved ? '#2e7d32' : '#c62828';
+  document.getElementById('r-ldl-tgt').textContent = '<' + tgt;
+
+  // Alert
+  document.getElementById('ldl-alert-box').innerHTML = achieved
+    ? `<div class="alert alert-success"><span class="alert-icon">✅</span><div>LDL-C <strong>${ldl} mg/dL</strong> 已達到建議理想控制目標（&lt;${tgt} mg/dL）。請繼續維持並定期追蹤。</div></div>`
+    : `<div class="alert alert-danger"><span class="alert-icon">⚠️</span><div>LDL-C <strong>${ldl} mg/dL</strong> 尚未達到理想控制目標（&lt;${tgt} mg/dL），還需降低約 <strong>${(ldl - tgt).toFixed(0)} mg/dL</strong>。請與醫師討論改善方案。</div></div>`;
+
+  // Non-HDL
+  const nonHdl = D.tc - D.hdl;
+  document.getElementById('r-nonhdl-val').textContent = nonHdl.toFixed(0) + ' mg/dL';
+  document.getElementById('r-nonhdl-tgt').textContent = '<' + info.nonHdlTgt + ' mg/dL';
+
+  // Lipid cards
+  const hdlLow = (D.sex === 'male' && D.hdl < 40) || (D.sex === 'female' && D.hdl < 50);
+  const lipids = [
+    { name:'總膽固醇', val:D.tc,
+      cls: D.tc<200?'ok': D.tc<240?'mid':'bad',
+      msg: D.tc<200?'✅ 正常範圍': D.tc<240?'⚠️ 略偏高':'❌ 明顯偏高',
+      mskcls: D.tc<200?'ok':D.tc<240?'mid':'bad' },
+    { name:'LDL-C（壞膽固醇）', val:D.ldl,
+      cls: achieved?'ok': (ldl - tgt)<30?'mid':'bad',
+      msg: achieved?'✅ 已達理想控制目標':'⚠️ 尚未達到理想控制目標',
+      mskcls: achieved?'ok':'bad' },
+    { name:'HDL-C（好膽固醇）', val:D.hdl,
+      cls: hdlLow?'bad':'ok',
+      msg: hdlLow?'⚠️ 偏低，保護力不足':'✅ 正常範圍',
+      mskcls: hdlLow?'bad':'ok' },
+    { name:'三酸甘油脂', val:D.tg,
+      cls: D.tg<150?'ok': D.tg<200?'mid':'bad',
+      msg: D.tg<150?'✅ 正常範圍': D.tg<200?'⚠️ 輕度偏高':'❌ 明顯偏高',
+      mskcls: D.tg<150?'ok':D.tg<200?'mid':'bad' },
+  ];
+  document.getElementById('lipid-grid').innerHTML = lipids.map(l =>
+    `<div class="lipid-item ${l.cls}">
+      <div class="li-name">${l.name}</div>
+      <div class="li-val">${l.val} <span class="li-unit">mg/dL</span></div>
+      <div class="li-msg ${l.mskcls}">${l.msg}</div>
+    </div>`
+  ).join('');
+
+  // Chart
+  if (chartInst) chartInst.destroy();
+  const ctx = document.getElementById('ldl-chart').getContext('2d');
+  const maxY = Math.max(ldl, tgt + 40, 200);
+  chartInst = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ['目前 LDL-C', '建議目標'],
+      datasets: [{
+        data: [ldl, tgt],
+        backgroundColor: [
+          achieved ? 'rgba(76,175,80,.7)' : 'rgba(229,57,53,.7)',
+          'rgba(21,101,192,.7)'
+        ],
+        borderColor: [
+          achieved ? '#4caf50' : '#e53935',
+          '#1565c0'
+        ],
+        borderWidth: 2, borderRadius: 8,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false },
+        tooltip: { callbacks: { label: c => c.parsed.y + ' mg/dL' } } },
+      scales: {
+        y: { beginAtZero: true, max: maxY,
+          ticks: { callback: v => v + '', font: { size: 11 } },
+          grid: { color: 'rgba(0,0,0,.04)' } },
+        x: { grid: { display: false }, ticks: { font: { size: 12, weight: '700' } } }
+      }
+    }
+  });
+
+  // Treatment content
+  document.getElementById('treatment-html').innerHTML = buildTreatment(risk, info, rfCount);
+
+  go(5);
+}
+
+/* ─── Build treatment content ─── */
+function buildTreatment(risk, info, rfCount) {
+  const ldl = D.ldl; const tgt = info.ldlTgt; const achieved = ldl < tgt;
+  let h = '';
+
+  // Special case: no CV risk factors at all (rfCount===0), primary prevention only
+  if (rfCount === 0) {
+    h += alert_box('info','ℹ️','目前<strong>無明顯心血管風險因子</strong>（年齡、HDL-C、高血壓、吸菸、家族史、代謝症候群均未達標準）。');
+    h += `<div class="edu-h" style="margin-top:14px;">建議追蹤方式</div>`;
+    h += `<p class="edu-p" style="margin-bottom:12px;">您目前屬於心血管風險極低族群，無需特別的藥物介入，維持健康生活型態是最重要的預防策略。</p>`;
+    h += step_item(1,'<strong>維持健康生活型態：</strong>均衡飲食、規律運動、維持理想體重、不抽菸，有助於長期維持良好的血脂狀態。');
+    h += step_item(2,'<strong>每年定期追蹤血脂：</strong>建議<strong>每年</strong>進行一次完整的血脂檢測，確認數值無明顯變化。');
+    h += step_item(3,'<strong>定期成人健康檢查：</strong>透過定期健檢及早發現是否出現新的心血管風險因子（如高血壓、糖尿病等）。');
+    h += alert_box('info','💬','<strong>重要提醒：</strong>以上建議僅供衛教參考，請由您的主治醫師依完整臨床資訊評估。');
+    return h;
+  }
+
+  if (achieved) {
+    h += alert_box('success','✅',`<strong>恭喜！您的 LDL-C（${ldl} mg/dL）已達到建議理想控制目標（&lt;${tgt} mg/dL）。</strong>請繼續維持現有的生活型態與藥物治療，並依建議<strong>${info.interval}</strong>追蹤血脂指標。`);
+  } else {
+    const cls = (risk === 'low' || risk === 'medium') ? 'warn' : 'danger';
+    h += alert_box(cls,'⚠️',`<strong>您的 LDL-C（${ldl} mg/dL）尚未達到理想控制目標（&lt;${tgt} mg/dL），</strong>還需降低約 <strong>${(ldl - tgt).toFixed(0)} mg/dL</strong>。以下為建議處置方向，請與醫師討論。`);
+  }
+
+  if (info.secondary) {
+    // Secondary prevention
+    h += `<div class="edu-h" style="margin-top:14px;">次級預防處置建議</div>`;
+    h += `<p class="edu-p" style="margin-bottom:12px;">您屬於<strong>次級預防</strong>族群（已確診 ASCVD 或影像確認嚴重動脈斑塊），需積極控制血脂。</p>`;
+    h += step_item(1,'<strong>起始藥物治療：</strong>依基線 LDL-C、過去用藥史及臨床狀況，醫師通常給予<strong>中至高強度 statin 類藥物</strong>，必要時合併 ezetimibe。');
+    h += step_item(2,'<strong>第 6–8 週追蹤：</strong>起始治療後第 6–8 週應抽血，評估是否達到理想控制目標。');
+    h += step_item(3,'<strong>未達標時：</strong>醫師可調整至高強度 statin 或最大耐受劑量，並考慮加上 ezetimibe、PCSK9 抑制劑（siRNA 或單株抗體）等 non-statin 藥物。');
+    h += step_item(4,`<strong>達標後長期追蹤：</strong>建議<strong>${info.interval}</strong>追蹤完整血脂指標，確保 LDL-C 持續達標。`);
+  } else {
+    // Primary prevention
+    h += `<div class="edu-h" style="margin-top:14px;">初級預防處置建議</div>`;
+    h += `<p class="edu-p" style="margin-bottom:12px;">您目前屬於<strong>初級預防</strong>族群，尚未確診 ASCVD，目標為及早預防心血管事件。</p>`;
+    if (risk === 'high') {
+      h += step_item(1,'<strong>立即起始藥物治療：</strong>高風險族群建議依基線 LDL-C 給予<strong>中至高強度 statin 類藥物</strong>（必要時合併 ezetimibe），並同步進行生活型態改變。');
+      h += step_item(2,'<strong>第 6–8 週追蹤：</strong>起始治療後 6–8 週抽血，評估是否達到 LDL-C 目標（&lt;100 mg/dL）。');
+      h += step_item(3,'<strong>未達標時：</strong>可調整至高強度 statin 或合併 non-statin 藥物（ezetimibe、PCSK9 抑制劑等）。');
+      h += step_item(4,`<strong>達標後定期追蹤：</strong>建議<strong>${info.interval}</strong>追蹤完整血脂指標。`);
+    } else {
+      // Low or medium risk with ≥1 RF
+      h += step_item(1,'<strong>生活型態改變（3–6 個月）：</strong>先進行健康飲食、定期運動、戒菸、控制體重，同時積極處置高血壓等風險因子。');
+      h += step_item(2,`<strong>3–6 個月後追蹤：</strong>抽血評估 LDL-C 是否達到目標（&lt;${tgt} mg/dL）。若未達標，可考慮中強度 statin 治療。`);
+      h += step_item(3,'<strong>考慮藥物治療：</strong>若改善後仍未達標，在醫病共享決策後可開始長期血脂藥物治療。');
+      h += step_item(4,`<strong>達標後定期追蹤：</strong>建議<strong>${info.interval}</strong>追蹤完整血脂指標。`);
+    }
+  }
+
+  // Special warnings
+  if (D.ldl >= 190) {
+    h += alert_box('warn','⚠️','<strong>嚴重高膽固醇血症提醒：</strong>您的 LDL-C ≥190 mg/dL，建議請醫師評估是否符合<strong>家族性高膽固醇血症（FH）</strong>診斷標準，必要時可進行基因篩檢。');
+  }
+  h += `<div style="height:6px;"></div>`;
+  h += alert_box('info','💬','<strong>重要提醒：</strong>以上建議僅供衛教參考。實際治療決策包括是否用藥、藥物選擇與劑量，請由您的主治醫師依完整臨床資訊評估決定。');
+  return h;
+}
+
+function alert_box(type, icon, content) {
+  return `<div class="alert alert-${type}"><span class="alert-icon">${icon}</span><div>${content}</div></div>`;
+}
+function step_item(num, content) {
+  return `<div class="t-step"><div class="t-num">${num}</div><div class="t-body"><p>${content}</p></div></div>`;
+}
+
+/* ─── Tabs ─── */
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+}
+
+/* ─── Export PDF ─── */
+function exportPDF() {
+  const btn = document.getElementById('pdf-btn');
+  btn.textContent = '⏳ 產生中...';
+  btn.disabled = true;
+
+  const el = document.getElementById('s5');
+
+  const opt = {
+    margin:       [10, 10, 10, 10],
+    filename:     '血脂健康評估報告.pdf',
+    image:        { type: 'jpeg', quality: 0.95 },
+    html2canvas:  { scale: 2, useCORS: true, logging: false },
+    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
+    pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
+  };
+
+  // Temporarily hide no-print elements inside s5
+  const noPrintEls = el.querySelectorAll('.no-print');
+  noPrintEls.forEach(e => e.style.visibility = 'hidden');
+
+  html2pdf().set(opt).from(el).save().then(() => {
+    noPrintEls.forEach(e => e.style.visibility = '');
+    btn.textContent = '📄 下載 PDF 報告';
+    btn.disabled = false;
+  }).catch(() => {
+    noPrintEls.forEach(e => e.style.visibility = '');
+    btn.textContent = '📄 下載 PDF 報告';
+    btn.disabled = false;
+    alert('PDF 產生失敗，請嘗試使用瀏覽器的列印功能（Ctrl+P / Cmd+P）。');
+  });
+}
+
+/* ─── Reset ─── */
+function resetAll() {
+  Object.keys(D).forEach(k => { D[k] = (typeof D[k] === 'boolean') ? false : null; });
+  ['f-age','f-tc','f-ldl','f-hdl','f-tg'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.value = ''; el.classList.remove('err'); }
+  });
+  document.querySelectorAll('input[type=checkbox]').forEach(cb => {
+    cb.checked = false;
+    cb.closest('.opt-label').classList.remove('selected');
+  });
+  document.getElementById('btn-male').classList.remove('selected');
+  document.getElementById('btn-female').classList.remove('selected');
+  document.getElementById('extreme-sub').style.display = 'none';
+  go(1);
+}
+</script>
+</body>
+</html>
