@@ -615,7 +615,10 @@
           <div style="font-size:.75rem;color:#888;margin-bottom:4px;">您的心血管風險等級</div>
           <div class="risk-badge" id="r-badge"></div>
         </div>
-        <button class="btn btn-secondary no-print" id="pdf-btn" onclick="exportPDF()" style="font-size:.82rem;padding:8px 14px;">📄 下載 PDF 報告</button>
+        <div class="no-print" style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-secondary" id="share-btn" onclick="copyShareLink()" style="font-size:.82rem;padding:8px 14px;">🔗 複製分享連結</button>
+          <button class="btn btn-secondary" id="pdf-btn" onclick="exportPDF()" style="font-size:.82rem;padding:8px 14px;">📄 下載 PDF</button>
+        </div>
       </div>
       <div class="meter-bar"><div class="meter-pointer" id="meter-ptr"></div></div>
       <div class="meter-labels">
@@ -1098,6 +1101,49 @@ function resetAll() {
   document.getElementById('extreme-sub').style.display = 'none';
   go(1);
 }
+
+/* ─── Share Link ─── */
+function getShareURL() {
+  const payload = JSON.stringify(D);
+  const encoded = btoa(unescape(encodeURIComponent(payload)));
+  return window.location.origin + window.location.pathname + '#share=' + encoded;
+}
+
+function copyShareLink() {
+  const url = getShareURL();
+  const btn = document.getElementById('share-btn');
+  navigator.clipboard.writeText(url).then(() => {
+    btn.textContent = '✅ 已複製！';
+    setTimeout(() => { btn.textContent = '🔗 複製分享連結'; }, 2500);
+  }).catch(() => {
+    // Fallback for browsers without clipboard API
+    const ta = document.createElement('textarea');
+    ta.value = url;
+    ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.focus(); ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    btn.textContent = '✅ 已複製！';
+    setTimeout(() => { btn.textContent = '🔗 複製分享連結'; }, 2500);
+  });
+}
+
+/* ─── Load from shared URL ─── */
+function loadFromHash() {
+  const hash = window.location.hash;
+  if (!hash.startsWith('#share=')) return;
+  try {
+    const encoded = hash.slice(7);
+    const data = JSON.parse(decodeURIComponent(escape(atob(encoded))));
+    Object.assign(D, data);
+    showResults();
+    // Clean URL without reloading
+    history.replaceState(null, '', window.location.pathname);
+  } catch(e) { /* invalid hash, ignore */ }
+}
+
+window.addEventListener('load', loadFromHash);
 </script>
 </body>
 </html>
