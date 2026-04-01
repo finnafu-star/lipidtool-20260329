@@ -617,6 +617,7 @@
         </div>
         <div class="no-print" style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;">
           <button class="btn btn-secondary" id="pdf-btn" onclick="exportPDF()" style="font-size:.82rem;padding:8px 14px;width:100%;">📄 下載 PDF</button>
+          <div style="font-size:.68rem;color:#888;text-align:right;line-height:1.4;">傳送 LINE/FB 請下載後手動附檔，<br>或使用下方「複製分享連結」</div>
           <button class="btn btn-secondary" id="share-btn" onclick="copyShareLink()" style="font-size:.82rem;padding:8px 14px;width:100%;">🔗 複製分享連結</button>
         </div>
       </div>
@@ -1050,54 +1051,54 @@ function exportPDF() {
   btn.disabled = true;
 
   const el = document.getElementById('s5');
-
-  const opt = {
-    margin:       [10, 10, 10, 10],
-    filename:     '血脂異常風險評估報告.pdf',
-    image:        { type: 'jpeg', quality: 0.95 },
-    html2canvas:  { scale: 2, useCORS: true, allowTaint: true, logging: false },
-    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
-    pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
-  };
-
-  // Temporarily hide no-print elements inside s5
   const noPrintEls = el.querySelectorAll('.no-print');
   noPrintEls.forEach(e => e.style.visibility = 'hidden');
 
-  html2pdf().set(opt).from(el).outputPdf('blob').then(async function(blob) {
+  const opt = {
+    margin:      [10, 10, 10, 10],
+    filename:    '血脂異常風險評估報告.pdf',
+    image:       { type: 'jpeg', quality: 0.92 },
+    html2canvas: {
+      scale: 2, useCORS: true, allowTaint: true, logging: false,
+      onclone: function(doc) {
+        doc.querySelectorAll('.no-print').forEach(e => e.style.display = 'none');
+      }
+    },
+    jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' },
+    pagebreak:   { mode: ['avoid-all', 'css', 'legacy'] }
+  };
+
+  function restore() {
     noPrintEls.forEach(e => e.style.visibility = '');
-    const fileName = '血脂異常風險評估報告.pdf';
-    const file = new File([blob], fileName, { type: 'application/pdf' });
+    btn.textContent = '📄 下載 PDF';
+    btn.disabled = false;
+  }
 
-    // 手機：使用原生分享（可直接傳 LINE、Email、WhatsApp 等）
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      try {
-        await navigator.share({
-          files: [file]
-        });
-        btn.textContent = '📄 下載 PDF';
-        btn.disabled = false;
-        return;
-      } catch(e) { /* 使用者取消分享，改為下載 */ }
-    }
-
-    // 桌機或分享取消：直接下載
+  function triggerDownload(blob) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = fileName;
+    a.download = '血脂異常風險評估報告.pdf';
+    a.style.display = 'none';
     document.body.appendChild(a);
     a.click();
-    document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-    btn.textContent = '📄 下載 PDF';
-    btn.disabled = false;
-  }).catch(() => {
-    noPrintEls.forEach(e => e.style.visibility = '');
-    btn.textContent = '📄 下載 PDF';
-    btn.disabled = false;
-    alert('PDF 產生失敗，請使用瀏覽器列印功能（Ctrl+P / Cmd+P）並選擇「另存為 PDF」。');
-  });
+    setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 500);
+  }
+
+  html2pdf().set(opt).from(el).outputPdf('blob')
+    .then(function(blob) {
+      restore();
+      if (!blob || blob.size < 500) {
+        window.print();
+        return;
+      }
+      triggerDownload(blob);
+    })
+    .catch(function() {
+      restore();
+      // 最終備援：瀏覽器列印存成 PDF
+      window.print();
+    });
 }
 
 /* ─── Reset ─── */
