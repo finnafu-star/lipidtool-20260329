@@ -617,7 +617,7 @@
         </div>
         <div class="no-print" style="display:flex;gap:8px;flex-wrap:wrap;">
           <button class="btn btn-secondary" id="share-btn" onclick="copyShareLink()" style="font-size:.82rem;padding:8px 14px;">🔗 複製分享連結</button>
-          <button class="btn btn-secondary" id="pdf-btn" onclick="exportPDF()" style="font-size:.82rem;padding:8px 14px;">📄 下載 PDF</button>
+          <button class="btn btn-secondary" id="pdf-btn" onclick="exportPDF()" style="font-size:.82rem;padding:8px 14px;">📤 分享 PDF</button>
         </div>
       </div>
       <div class="meter-bar"><div class="meter-pointer" id="meter-ptr"></div></div>
@@ -1064,22 +1064,39 @@ function exportPDF() {
   const noPrintEls = el.querySelectorAll('.no-print');
   noPrintEls.forEach(e => e.style.visibility = 'hidden');
 
-  html2pdf().set(opt).from(el).outputPdf('blob').then(function(blob) {
-    // Force file download — avoids blob URL sharing confusion
+  html2pdf().set(opt).from(el).outputPdf('blob').then(async function(blob) {
+    noPrintEls.forEach(e => e.style.visibility = '');
+    const fileName = '血脂異常風險評估報告.pdf';
+    const file = new File([blob], fileName, { type: 'application/pdf' });
+
+    // 手機：使用原生分享（可直接傳 LINE、Email、WhatsApp 等）
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({
+          files: [file],
+          title: '血脂異常風險評估報告',
+          text: '我的血脂異常風險評估結果'
+        });
+        btn.textContent = '📤 分享 PDF';
+        btn.disabled = false;
+        return;
+      } catch(e) { /* 使用者取消分享，改為下載 */ }
+    }
+
+    // 桌機或分享取消：直接下載
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = '血脂異常風險評估報告.pdf';
+    a.download = fileName;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 1000);
-    noPrintEls.forEach(e => e.style.visibility = '');
-    btn.textContent = '📄 下載 PDF 報告';
+    btn.textContent = '📤 分享 PDF';
     btn.disabled = false;
   }).catch(() => {
     noPrintEls.forEach(e => e.style.visibility = '');
-    btn.textContent = '📄 下載 PDF 報告';
+    btn.textContent = '📤 分享 PDF';
     btn.disabled = false;
     alert('PDF 產生失敗，請使用瀏覽器列印功能（Ctrl+P / Cmd+P）並選擇「另存為 PDF」。');
   });
