@@ -617,7 +617,7 @@
         </div>
         <div class="no-print" style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;">
           <button class="btn btn-secondary" id="pdf-btn" onclick="exportPDF()" style="font-size:.82rem;padding:8px 14px;width:100%;">📄 下載 PDF</button>
-          <div style="font-size:.68rem;color:#888;text-align:right;line-height:1.4;">傳送 LINE/FB 請下載後手動附檔，<br>或使用下方「複製分享連結」</div>
+          <div style="font-size:.68rem;color:#888;text-align:right;line-height:1.4;">手機可直接傳送至 LINE、Email 等<br>桌機則自動下載至電腦</div>
           <button class="btn btn-secondary" id="share-btn" onclick="copyShareLink()" style="font-size:.82rem;padding:8px 14px;width:100%;">🔗 複製分享連結</button>
         </div>
       </div>
@@ -1086,17 +1086,30 @@ function exportPDF() {
   }
 
   html2pdf().set(opt).from(el).outputPdf('blob')
-    .then(function(blob) {
+    .then(async function(blob) {
       restore();
-      if (!blob || blob.size < 500) {
-        window.print();
-        return;
+      if (!blob || blob.size < 500) { window.print(); return; }
+
+      // 手機：嘗試原生分享（可傳 LINE、Email、AirDrop 等）
+      const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+      if (isMobile && navigator.canShare) {
+        const file = new File([blob], '血脂異常風險評估報告.pdf', { type: 'application/pdf' });
+        if (navigator.canShare({ files: [file] })) {
+          try {
+            await navigator.share({ files: [file], title: '血脂異常風險評估報告' });
+            return; // 分享成功，不另行下載
+          } catch(e) {
+            if (e.name === 'AbortError') return; // 使用者取消，不下載
+            // 其他錯誤則 fall through 至直接下載
+          }
+        }
       }
+
+      // 桌機或不支援 Web Share：直接下載
       triggerDownload(blob);
     })
     .catch(function() {
       restore();
-      // 最終備援：瀏覽器列印存成 PDF
       window.print();
     });
 }
